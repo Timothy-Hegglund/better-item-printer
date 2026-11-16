@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0a0f1e">
+  <title>Better Item Printer</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="printer.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+<main>
+  <header>
+    <a href="./" class="brand"><span class="logo">✦</span><span>Better Item Printer<small>SCARLET &amp; VIOLET</small></span></a>
+    <span id="connection" class="badge">Connecting…</span>
+  </header>
+
+  <div class="intro">
+    <div>
+      <p class="eyebrow">YOUR NEXT PRINT, TIMED RIGHT</p>
+      <h1>A little less luck. A lot more precision.</h1>
+      <p>Follow the clock. Find your moment. Know what’s next.</p>
+    </div>
+    <button id="phoneButton" class="quiet">Open on your phone</button>
+  </div>
+
+  <section class="clock-panel" aria-label="Live clock">
+    <div>
+      <p class="eyebrow">PC LOCAL TIME · LIVE</p>
+      <div id="clock" class="clock">--:--:--</div>
+      <p id="date">Synchronizing with your computer…</p>
+    </div>
+    <div class="console-clock">
+      <p class="eyebrow">TRACKED CONSOLE TIME</p>
+      <strong id="consoleClock">--:--:--</strong>
+      <p>Seed <code id="seed">—</code></p>
+    </div>
+    <div class="clock-settings">
+      <label for="offset">Console ahead / behind PC (seconds)</label>
+      <input id="offset" type="number" min="-2000000000" max="2000000000" value="0" step="1">
+      <small>Use −60 if your console is one minute behind.</small>
+    </div>
+  </section>
+
+  <div id="artworkNotice" class="art-notice" role="status" hidden></div>
+  <div id="error" role="alert" hidden></div>
+
+  <div class="workspace">
+    <section class="card controls">
+      <div class="section-title"><span class="step">01</span><h2>Set up your print</h2></div>
+      <label for="mode">Printer mode</label>
+      <select id="mode">
+        <option value="0">Regular print</option>
+        <option value="1">Item bonus · double items</option>
+        <option value="2">Ball bonus</option>
+      </select>
+      <label for="count">Number of prints</label>
+      <select id="count">
+        <option value="1">1 print</option>
+        <option value="5">5 prints</option>
+        <option value="10" selected>10 prints</option>
+      </select>
+      <div class="switch-row">
+        <label for="live">Follow current time<small>Forecast refreshes every second</small></label>
+        <input type="checkbox" id="live" checked>
+      </div>
+      <label for="target">Target console date &amp; time</label>
+      <input type="datetime-local" id="target" step="1" min="2000-01-01T00:00:00" max="2060-12-31T23:59:59">
+      <div class="button-row">
+        <button id="preview" class="primary">Preview target</button>
+        <button id="now" class="quiet">Use now</button>
+      </div>
+      <div class="target-box">
+        <p class="eyebrow" id="targetLabel">TARGET COUNTDOWN</p>
+        <strong id="countdown">Choose a target</strong>
+        <small id="targetHint">Preview a time or pick a search result.</small>
+      </div>
+      <button id="startSession" class="quiet full">Start session from this forecast</button>
+      <p class="hint">Forecasts assume both bonus modes and Stellar Tera Shards are unlocked. Match your console’s displayed local time.</p>
+    </section>
+
+    <section class="card results">
+      <div class="section-title"><span class="step">02</span><h2>Your forecast</h2><span id="forecastState" class="badge">Live</span></div>
+      <p id="forecastTime" class="muted">Loading the next print…</p>
+      <div class="reward-heading"><span>PRINT / REWARD</span><span>QUANTITY</span></div>
+      <ol id="rewards"></ol>
+      <div class="bonus"><span>Bonus triggered for next job</span><strong id="bonus">—</strong></div>
+      <div id="session" hidden>
+        <p id="sessionInfo"></p>
+        <div class="button-row">
+          <button id="nextJob" class="primary">Next job in session</button>
+          <button id="endSession" class="quiet">End session</button>
+        </div>
+        <p class="hint">Stay inside the printer in-game. The next job continues the RNG; it does not reseed from the clock. After performing the displayed job, tap Next job, then choose the mode and quantity active in-game.</p>
+      </div>
+    </section>
+  </div>
+
+  <section class="card search">
+    <div class="section-title"><span class="step">03</span><h2>Find a better moment</h2></div>
+    <p class="muted">Scan ahead from the tracked console time, then tap a result to set your target. Choose <strong>Show: Most of item</strong> to rank times by quantity — for example, the most Master Balls in the next hour. The item list follows the printer mode; Poké Balls need Ball bonus mode.</p>
+    <form id="searchForm">
+      <div>
+        <label for="item">Desired item</label>
+        <div class="item-choice"><img id="selectedItemImage" width="48" height="48" alt="" hidden><select id="item"><option value="0">Any item</option></select></div>
+      </div>
+      <div>
+        <label for="findBonus">Bonus to trigger</label>
+        <select id="findBonus">
+          <option value="0">Any bonus / none</option>
+          <option value="1">Item bonus</option>
+          <option value="2">Ball bonus</option>
+        </select>
+      </div>
+      <div>
+        <label for="searchWindow">Time frame</label>
+        <select id="searchWindow">
+          <option value="600">Next 10 minutes</option>
+          <option value="1800">Next 30 minutes</option>
+          <option value="3600" selected>Next hour</option>
+          <option value="10800">Next 3 hours</option>
+          <option value="21600">Next 6 hours</option>
+          <option value="86400">Next 24 hours</option>
+        </select>
+      </div>
+      <div>
+        <label for="rankBy">Show</label>
+        <select id="rankBy">
+          <option value="0">Soonest first</option>
+          <option value="1">Most of item</option>
+        </select>
+      </div>
+      <button id="searchButton" class="primary" type="submit">Find times</button>
+    </form>
+    <div id="matches" aria-live="polite"></div>
+  </section>
+
+  <section class="card library">
+    <div class="section-title"><span class="step">04</span><h2>Item &amp; Poké Ball reference</h2><span id="artworkCount" class="badge"></span></div>
+    <p class="muted">Every printable reward, with its original artwork. Tap an item for a closer look or to search for it.</p>
+    <div class="library-controls">
+      <label>Find artwork<input id="artSearch" type="search" placeholder="Search items, Balls, or item ID…"></label>
+      <label>Show<select id="artFilter"><option value="all">All rewards</option><option value="balls">Poké Balls</option><option value="items">Items</option></select></label>
+    </div>
+    <div id="artGrid" class="art-grid"></div>
+    <details class="reference-details">
+      <summary>All original program images &amp; reference art <span id="referenceCount"></span></summary>
+      <div id="referenceGrid" class="reference-grid"></div>
+    </details>
+  </section>
+
+  <dialog id="artDialog">
+    <button id="closeArt" class="quiet close" aria-label="Close artwork">×</button>
+    <div class="art-preview"><img id="largeArt" alt=""></div>
+    <h2 id="artName"></h2>
+    <p id="artInfo" class="muted"></p>
+    <button id="searchForArt" class="primary full">Find this item</button>
+    <a id="artOriginal" class="original-link" target="_blank" rel="noopener">Open original image ↗</a>
+  </dialog>
+
+  <details class="card help">
+    <summary>How to use the tracker</summary>
+    <p>Set your console clock to match the tracked console time, or enter its difference from the PC in seconds. Live forecasts show the result of opening the printer at that second. The game seeds its RNG when you first enter the printer; it does not keep reseeding while you stay inside.</p>
+    <p>To hit a target, open the printer at the target console time. Account for your controller and game delay. Use session mode for additional jobs without leaving the printer. This tool calculates results; it does not read or control your Switch.</p>
+  </details>
+
+  <footer>
+    <span>Made for a calmer grind.</span>
+    <a href="https://github.com/kwsch/ItemPrinterDeGacha">Calculations based on ItemPrinterDeGacha · GPLv3</a>
+  </footer>
+
+  <dialog id="phoneDialog">
+    <button id="closePhone" class="quiet close" aria-label="Close">×</button>
+    <p class="eyebrow">TAKE YOUR TRACKER WITH YOU</p>
+    <h2>Same Wi-Fi. Same clock.</h2>
+    <p>Open one of these addresses in your phone’s browser:</p>
+    <div id="phoneUrls"></div>
+    <p class="hint">Keep the server window open on your PC. If the page won’t load, allow Python through Windows Firewall on Private networks and check that neither device uses guest Wi-Fi or a VPN.</p>
+  </dialog>
+</main>
+</body>
+</html>
