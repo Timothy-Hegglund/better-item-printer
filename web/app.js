@@ -181,7 +181,7 @@ function matchButton(result, index, wanted, wantedName, mode, count) {
   return button;
 }
 $('searchForm').onsubmit = async event => {
-  event.preventDefault(); $('searchButton').disabled = true; $('searchButton').textContent = 'Searching…'; $('matches').setAttribute('aria-busy', 'true');
+  event.preventDefault(); $('foundCard').hidden = false; $('searchButton').disabled = true; $('searchButton').textContent = 'Searching…'; $('matches').setAttribute('aria-busy', 'true');
   const summary = el('p', 'match-summary');
   try {
     const mode = Number($('mode').value), count = Number($('count').value), rank = $('rankBy').value === '1';
@@ -194,7 +194,7 @@ $('searchForm').onsubmit = async event => {
     $('matches').replaceChildren(summary, ...data.results.map((result, index) => matchButton(result, index, wanted, wantedName, mode, count)));
   } catch(e) {
     summary.className += ' bad'; summary.textContent = e.message; $('matches').replaceChildren(summary);
-  } finally { $('searchButton').disabled = false; $('searchButton').textContent = 'Find times'; $('matches').removeAttribute('aria-busy'); }
+  } finally { $('searchButton').disabled = false; $('searchButton').textContent = 'Find times'; $('matches').removeAttribute('aria-busy'); $('foundCard').scrollIntoView({block:'nearest', behavior:'smooth'}); }
 };
 $('phoneButton').onclick = () => {
   $('phoneUrls').replaceChildren();
@@ -241,13 +241,18 @@ function renderLibrary(force = false) {
   if (!selected.length) $('artGrid').textContent = 'No matching items.';
 }
 function openArtwork(item) {
-  $('largeArt').src = 'art/items/' + item.id + '.png'; $('largeArt').alt = item.name;
-  $('artName').textContent = item.name; $('artInfo').textContent = `Item #${item.id} · ${item.ball || items.find(x => x.id === item.id)?.ball ? 'Ball bonus mode' : 'Regular / Item bonus mode'}`;
-  $('artOriginal').href = 'art/items/' + item.id + '.png'; $('searchForArt').hidden = false;
+  const info = items.find(x => x.id === item.id) ?? item;
+  const range = (lo, hi) => lo === hi ? `×${lo}` : `×${lo}–${hi}`;
+  $('largeArt').src = 'art/items/' + item.id + '.png'; $('largeArt').alt = info.name;
+  $('artKind').textContent = info.ball ? 'POKÉ BALL' : 'ITEM'; $('artName').textContent = info.name;
+  $('artChance').textContent = info.chance ? `${(info.chance / 100).toLocaleString(undefined, {maximumFractionDigits: 2})}%` : '—';
+  $('artAmount').textContent = !info.min ? '—' : info.ball ? range(info.min, info.max)
+    : `${range(info.min, info.max)} (Item bonus ${range(info.min * 2, info.max * 2)})`;
+  $('artMode').textContent = info.ball ? 'Ball bonus' : 'Regular or Item bonus';
   $('searchForArt').onclick = () => {
-    const ball = items.find(x => x.id === item.id)?.ball;
-    $('mode').value = ball ? '2' : '0'; renderItems(); $('item').value = String(item.id); updateSelectedItem();
-    $('findBonus').value = '0'; invalidate(); tick(); $('artDialog').close(); $('searchForm').scrollIntoView({block:'center'});
+    $('mode').value = info.ball ? '2' : '0'; renderItems(); $('item').value = String(item.id); updateSelectedItem();
+    $('findBonus').value = '0'; save('printerMode', $('mode').value); invalidate(); tick(); $('artDialog').close();
+    $('searchForm').scrollIntoView({block: 'center', behavior: 'smooth'});
   };
   $('artDialog').showModal();
 }
@@ -255,4 +260,5 @@ function setupArtwork() {
   $('item').addEventListener('change', () => { updateSelectedItem(); invalidate(); tick(); });  // re-highlight the wanted item in the forecast
   $('artSearch').oninput = () => renderLibrary(); $('artFilter').onchange = () => renderLibrary();
   $('closeArt').onclick = () => $('artDialog').close();
+  $('artDialog').addEventListener('click', e => { if (e.target === $('artDialog')) $('artDialog').close(); });  // click outside closes
 }

@@ -58,7 +58,8 @@ class Handler(SimpleHTTPRequestHandler):
             if url.path == '/api/status':
                 return self.respond({**current, 'urls': self.server.phone_urls,
                     'artwork': self.server.artwork_status,
-                    'items': [{'id': x['ItemId'], 'name': NAMES[str(x['ItemId'])], 'ball': ball}
+                    'items': [{'id': x['ItemId'], 'name': NAMES[str(x['ItemId'])], 'ball': ball, 'chance': x['EmergePercent'],
+                               'min': x['LotteryItemNumMin'], 'max': x['LotteryItemNumMax']}
                               for ball, entries in ((False, ITEMS), (True, BALLS)) for x in entries]})
             seed, mode, count = value('seed', current['seed']), value('mode', 0), value('count', 10)
             chain = json.loads(q.get('chain', ['[]'])[0])

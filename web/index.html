@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0a0f1e">
   <title>Better Item Printer</title>
-  <link rel="stylesheet" href="style.css?v=6">
-  <script src="printer.js?v=6" defer></script>
-  <script src="app.js?v=6" defer></script>
+  <link rel="stylesheet" href="style.css?v=8">
+  <script src="printer.js?v=8" defer></script>
+  <script src="app.js?v=8" defer></script>
 </head>
 <body>
 <main>
@@ -126,10 +126,14 @@
         </div>
         <button id="searchButton" class="primary" type="submit">Find times</button>
       </form>
-      <div id="matches" aria-live="polite"></div>
     </section>
   </div>
 
+
+  <section class="card found" id="foundCard" hidden>
+    <div class="section-title"><h2>Found times</h2></div>
+    <div id="matches" aria-live="polite"></div>
+  </section>
 
   <section class="card library">
     <div class="section-title"><span class="step">04</span><h2>Item &amp; Poké Ball reference</h2><span id="artworkCount" class="badge"></span></div>
@@ -141,13 +145,18 @@
     <div id="artGrid" class="art-grid"></div>
   </section>
 
-  <dialog id="artDialog">
-    <button id="closeArt" class="quiet close" aria-label="Close artwork">×</button>
+  <dialog id="artDialog" aria-labelledby="artName">
+    <div class="dialog-head">
+      <div><p class="eyebrow" id="artKind"></p><h2 id="artName"></h2></div>
+      <button id="closeArt" class="quiet close" aria-label="Close">×</button>
+    </div>
     <div class="art-preview"><img id="largeArt" alt=""></div>
-    <h2 id="artName"></h2>
-    <p id="artInfo" class="muted"></p>
-    <button id="searchForArt" class="primary full">Find this item</button>
-    <a id="artOriginal" class="original-link" target="_blank" rel="noopener">Open original image ↗</a>
+    <dl class="art-stats">
+      <div><dt>Chance per print</dt><dd id="artChance"></dd></div>
+      <div><dt>Amount</dt><dd id="artAmount"></dd></div>
+      <div><dt>Printer mode</dt><dd id="artMode"></dd></div>
+    </dl>
+    <button id="searchForArt" class="primary full" autofocus>Find times for this item</button>
   </dialog>
 
   <footer>

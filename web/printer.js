@@ -67,7 +67,7 @@ async function localApi(path, params) {
   const value = (key, fallback) => { const v = params[key] ?? fallback; if (!/^-?\d+$/.test(String(v))) throw Error(`Invalid ${key}.`); return Number(v); };
   if (path === 'status') return {...clock, urls: [location.href.split('#')[0]],
     artwork: {total: ITEMS.length + BALLS.length, cached: ITEMS.length + BALLS.length, missing: [], references, complete: true},
-    items: [...ITEMS.map(x => [x, false]), ...BALLS.map(x => [x, true])].map(([x, ball]) => ({id: x.ItemId, name: names[x.ItemId], ball}))};
+    items: [...ITEMS.map(x => [x, false]), ...BALLS.map(x => [x, true])].map(([x, ball]) => ({id: x.ItemId, name: names[x.ItemId], ball, chance: x.EmergePercent, min: x.LotteryItemNumMin, max: x.LotteryItemNumMax}))};
   const seed = value('seed', clock.seed), mode = value('mode', 0), count = value('count', 10);
   const chain = JSON.parse(params.chain ?? '[]');
   if (!Array.isArray(chain) || chain.length > 100) throw Error('A session can contain up to 100 jobs.');

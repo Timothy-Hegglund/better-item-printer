@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+from types import SimpleNamespace
 import unittest
 
 from printer import forecast
@@ -43,10 +44,15 @@ class BrowserPortTests(unittest.TestCase):
             self.assertEqual(js, py, params)
             self.assertTrue(js['results'])
         self.assertEqual(len(out['status']['items']), 156)
+        self.assertEqual(out['status']['items'], self.python_get('/api/status')['items'])
 
     def python_search(self, params):
+        return self.python_get('/api/search?' + '&'.join(f'{k}={v}' for k, v in params.items()))
+
+    def python_get(self, path):
         handler = server.Handler.__new__(server.Handler)
-        handler.path = '/api/search?' + '&'.join(f'{k}={v}' for k, v in params.items())
+        handler.path = path
+        handler.server = SimpleNamespace(phone_urls=[], artwork_status={})
         captured = {}
         handler.respond = lambda obj, code=200: captured.update(obj)
         handler.do_GET()
