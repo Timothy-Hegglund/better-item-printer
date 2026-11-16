@@ -25,6 +25,11 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    def end_headers(self):
+        if not self.path.startswith('/api/'):  # make browsers recheck app files so edits show up on reload
+            self.send_header('Cache-Control', 'no-cache')
+        super().end_headers()
+
     def log_message(self, fmt, *args):
         if args and str(args[0]).startswith(('GET /api/', 'GET /favicon', 'GET /art/')):
             return

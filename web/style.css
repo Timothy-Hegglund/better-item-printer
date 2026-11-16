@@ -46,7 +46,7 @@ header, .card, .clock-panel, dialog {
 
 /* Header & intro */
 header, .brand, .section-title, .button-row, .switch-row, footer, .reward-heading, .bonus { display: flex; align-items: center; }
-header { position: sticky; top: 12px; z-index: 5; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 10px; border-radius: 999px; }
+header { justify-content: space-between; gap: 10px; padding: 8px 10px 8px 10px; border-radius: 999px; }
 .brand { text-decoration: none; gap: 12px; font-weight: 650; }
 .brand small { display: block; letter-spacing: 2px; font-size: 10px; margin-top: 3px; }
 .logo { font-size: 24px; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; color: var(--on-accent); background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6); }
@@ -70,6 +70,7 @@ header { position: sticky; top: 12px; z-index: 5; justify-content: space-between
 .search, .library, .help { margin-top: 24px; }
 .section-title { gap: 10px; margin-bottom: 20px; }
 .section-title .badge { margin-left: auto; }
+.section-title .badge + .seg { margin-left: 0; }
 .step { font-size: 11px; color: var(--muted); border: 1px solid var(--line); background: rgba(255, 255, 255, .05); border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; flex-shrink: 0; }
 
 /* Form controls */
@@ -168,12 +169,11 @@ footer a { text-decoration: none; }
   .workspace { grid-template-columns: 300px 1fr; }
   .clock-panel { grid-template-columns: 1fr 1fr; }
   .clock-settings { grid-column: 1 / -1; }
-  .clock-settings input { max-width: 200px; }
+  .clock-settings input, .offset-seg { max-width: none; }
   .intro { align-items: start; }
 }
 @media (max-width: 640px) {
   main { padding: 12px 16px 18px; }
-  header { top: 8px; }
   .brand { font-size: 14px; }
   .logo { width: 36px; height: 36px; font-size: 20px; }
   .intro { display: block; margin: 24px 0 18px; }
@@ -206,3 +206,46 @@ footer a { text-decoration: none; }
   header, .card, .clock-panel, dialog { background: #161d33; -webkit-backdrop-filter: none; backdrop-filter: none; }
   body::before { display: none; }
 }
+
+/* Joined button pair: rounded outer ends, thin divider in the middle. */
+.seg { display: inline-flex; flex: none; border: 1px solid var(--glass-line); border-radius: 999px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; box-shadow: none; min-height: 36px; padding: 6px 12px; white-space: nowrap; }
+.seg button + button { border-left: 1px solid var(--glass-line); }
+.offset-seg { display: flex; width: max-content; margin-bottom: 8px; }
+.offset-seg button { min-width: 64px; }
+#offset { text-align: center; }
+header { margin-bottom: 22px; }
+.brand > span:last-child { white-space: nowrap; line-height: 1.15; }
+@media (max-width: 520px) {
+  .brand small { letter-spacing: 1px; font-size: 9px; }
+  header #phoneButton { min-height: 36px; padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+}
+.tz-label { margin-top: 10px; font-size: 11px; }
+#timezone { max-width: 100%; }
+/* Left column: setup (01) with search (03) under it; forecast (02) spans the right. */
+.workspace { grid-template-rows: auto 1fr; }
+.workspace .controls { grid-column: 1; grid-row: 1; }
+.workspace .results { grid-column: 2; grid-row: 1 / span 2; }
+.workspace .search { grid-column: 1; grid-row: 2; margin-top: 0; }
+.workspace .search form { grid-template-columns: minmax(0, 1fr); }
+.workspace .search form button { grid-column: auto; }
+/* Keep setup card height steady while stepping/targeting. */
+#now[hidden] { display: block !important; visibility: hidden; }  /* reserve its space so the card height stays put */
+#countdown { white-space: nowrap; }
+#targetHint { min-height: 1.4em; }
+@media (max-width: 640px) {
+  .workspace { grid-template-rows: none; }
+  .workspace .controls, .workspace .results, .workspace .search { grid-column: auto; grid-row: auto; }
+}
+.workspace .search > p.muted { font-size: 13px; line-height: 1.5; }
+/* Compact setup card */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.controls label { margin-top: 12px; }
+.controls .section-title { margin-bottom: 8px; }
+.controls .target-box { margin-top: 14px; padding: 12px 14px; }
+.target-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.target-head #now { min-height: 30px; padding: 4px 12px; font-size: 12px; }
+.target-box #countdown { margin-top: 2px; }
+.target-box #targetHint { margin-top: 2px; }
+/* Stretch search so its bottom lines up with the forecast card. */
+.workspace .search { align-self: stretch; }

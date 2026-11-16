@@ -16,11 +16,12 @@ The game picks a print job's rewards from your Switch's date and time, to the
 second, at the moment you **first enter the printer**. Enter the printer at a
 known second and you know the rewards.
 
-1. **Line up the clocks.** In *Console ahead / behind PC*, enter how many seconds
+1. **Line up the clocks.** In *Console ahead / behind this clock*, enter how many seconds
    your Switch's clock is ahead (positive) or behind (negative) the clock shown
-   in the app.
+   in the app. The −0.5 / +0.5 buttons fine-tune it by half a second.
 2. **Pick a job.** Choose the mode (Regular, Item bonus, Ball bonus) and 1, 5 or
    10 prints. The forecast shows the rewards for entering the printer right now.
+   Use **◀ −1 s** and **+1 s ▶** to see the seconds just before or after.
 3. **Find a good time.** Choose a desired item or bonus and a time frame
    (10 minutes to 24 hours):
    - **Soonest first** lists the first eight matching times.
@@ -29,12 +30,17 @@ known second and you know the rewards.
      mode within the next hour.
 
    Matches count any reward in the job. Bonus searches need Regular mode;
-   searching with 1 print is a quick way to trigger a bonus first.
+   searching with 1 print is a quick way to trigger a bonus first. You can also
+   type a time into *Jump to a console time*.
 4. **Hit the second.** Pick a result to get a countdown, and enter the printer
    when it reaches zero.
-5. **Keep printing (optional).** Start a session from the forecast. After each
-   job, stay in the printer, press **Next job in session**, and choose the next
-   mode and quantity. End the session when you leave the printer.
+5. **Tell it what you got.** If your rewards match the forecast, tap **I got
+   this one**. If they don't, use ◀ ▶ to find the forecast that matches, then
+   tap it: the offset is corrected by the difference, so your next countdown
+   lands on time.
+6. **Keep printing (optional).** After **I got this one**, stay in the printer.
+   After each job, press **Next job in session** and choose the next mode and
+   quantity. Tap **Back to live time** when you leave the printer.
 
 Your mode, quantity and clock difference are remembered in that browser. Targets
 and sessions are not shared between devices.

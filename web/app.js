@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const modes = ['Regular', 'Item bonus', 'Ball bonus'];
 let baseSeed = 0, basePc = 0, syncedAt = 0, lastSync = 0, items = [], urls = [];
-let target = null, shownSeed = null, shownMode = 0, shownCount = 10, session = null;
+let target = null, aim = null, shownSeed = null, shownMode = 0, shownCount = 10, session = null;
 let pending = false, generation = 0, lastRendered = '', syncBusy = false;
 let artStatus = null, libraryKey = "";
 function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
@@ -12,9 +12,10 @@ const displayDate = seed => dateFor(seed).replace('T', ' ');
 const timeFor = seed => dateFor(seed).slice(11);
 const waitText = s => s < 0 ? 'passed' : s >= 3600 ? `in ${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m` : s >= 60 ? `in ${Math.floor(s / 60)}m ${s % 60}s` : `in ${s}s`;
 const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
-function offset() { const n = Number($('offset').value); if (!$('offset').checkValidity() || !Number.isInteger(n)) throw Error('Enter a whole number of seconds for the console offset.'); return n; }
-function current() { return baseSeed + Math.floor((basePc + performance.now() - syncedAt) / 1000) - Math.floor(basePc / 1000); }
-function tracked() { return current() + offset(); }
+function offset() { const n = Number($('offset').value); if ($('offset').value === '' || !Number.isFinite(n) || Math.abs(n) > 2e9) throw Error('Enter the console offset in seconds, e.g. 3 or -1.5.'); return n; }
+function seedAt(extraMs) { return baseSeed + Math.floor((basePc + performance.now() - syncedAt + extraMs) / 1000) - Math.floor(basePc / 1000); }
+function current() { return seedAt(0); }
+function tracked() { return seedAt(offset() * 1000); }  // offset may be fractional (e.g. 0.5 s)
 function error(message = '') { $('error').textContent = message; $('error').hidden = !message; }
 let serverless = null;  // decided on first call: no Python server (e.g. GitHub Pages) → calculate in the browser
 async function api(path, params = {}) {
@@ -30,24 +31,50 @@ function renderItems() {
   if ($('findBonus').disabled) $('findBonus').value = '0';
   updateSelectedItem();
 }
+// Wall-clock offset (ms) of an IANA zone at a given instant, e.g. -18000000 for New York in winter.
+function zoneOffsetMs(zone, ms) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric',
+    day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric'}).formatToParts(ms).map(x => [x.type, Number(x.value)]));
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
+}
+function setupTimezones() {
+  const zones = Intl.supportedValuesOf?.('timeZone') ?? [], now = Date.now();
+  const label = zone => { const m = zoneOffsetMs(zone, now) / 60000, a = Math.abs(m);
+    return `${zone.replaceAll('_', ' ')} (UTC${m < 0 ? '−' : '+'}${String(Math.floor(a / 60)).padStart(2, '0')}:${String(a % 60).padStart(2, '0')})`; };
+  zones.forEach(zone => $('timezone').add(new Option(label(zone), zone)));
+  const saved = read('printerTimezone', '');
+  $('timezone').value = zones.includes(saved) ? saved : '';
+  $('timezone').onchange = () => { save('printerTimezone', $('timezone').value); invalidate(); lastSync = 0; sync().then(tick); };
+}
 async function sync(initial = false) {
   if (syncBusy) return; syncBusy = true;
   try {
     const start = performance.now(), data = await api('status');
     const midpoint = (start + performance.now()) / 2;
-    baseSeed = data.seed; basePc = Date.parse(data.local + 'Z'); syncedAt = midpoint; lastSync = performance.now();
-    items = data.items; urls = data.urls;
+    const zone = $('timezone').value;  // '' = the clock's own zone (this device online, the PC with the server)
+    basePc = zone ? data.unixMs + zoneOffsetMs(zone, data.unixMs) : Date.parse(data.local + 'Z');
+    baseSeed = zone ? Math.floor(basePc / 1000) : data.seed; syncedAt = midpoint; lastSync = performance.now();
+    items = data.items; urls = data.urls; $('phoneButton').hidden = serverless;  // phone link only makes sense with the PC server
     artStatus = data.artwork; renderArtworkStatus(); renderLibrary();
-    $('connection').textContent = '● PC clock synced';
     if (initial) { renderItems(); $('target').value = dateFor(tracked() + 60); }
-  } catch (e) { $('connection').textContent = '● Disconnected'; error('Cannot reach the PC. Keep the server running and reconnect to the same Wi-Fi.'); }
+  } catch (e) { error('Cannot reach the PC. Keep the server running and reconnect to the same Wi-Fi.'); }
   finally { syncBusy = false; }
 }
 function invalidate() { generation++; lastRendered = ''; }
-function setTarget(seed) {
+function setTarget(seed, aimed = true) {
   if (session) endSession();
-  target = seed; $('live').checked = false; $('target').value = dateFor(seed); invalidate(); tick();
+  target = seed; if (aimed) aim = seed;
+  $('target').value = dateFor(seed); $('now').hidden = false; invalidate(); tick();
 }
+function stepSecond(delta) {
+  if (session || shownSeed === null) return;
+  setTarget((target ?? shownSeed) + delta, false);  // browsing keeps the second you aimed for
+}
+$('prevSecond').onclick = () => stepSecond(-1);
+$('nextSecond').onclick = () => stepSecond(1);
+function setOffset(value) { $('offset').value = String(Math.round(value * 10) / 10); $('offset').oninput(); }
+$('offsetDown').onclick = () => { try { setOffset(offset() - 0.5); } catch { setOffset(-0.5); } };
+$('offsetUp').onclick = () => { try { setOffset(offset() + 0.5); } catch { setOffset(0.5); } };
 let renderToken = 0;
 async function renderForecast(data, seed, mode, count) {
   const token = ++renderToken;
@@ -61,18 +88,21 @@ async function renderForecast(data, seed, mode, count) {
     const quantity = document.createElement('strong'); quantity.textContent = '×' + item.count; row.append(quantity); return row;
   });
   // Swap rows in only once their images are decoded, so they don't blink blank each second.
-  await Promise.all(rows.flatMap(row => [...row.querySelectorAll('img')].map(img => img.decode().catch(() => {}))));
+  const decoded = Promise.all(rows.flatMap(row => [...row.querySelectorAll('img')].map(img => img.decode().catch(() => {}))));
+  await Promise.race([decoded, new Promise(r => setTimeout(r, 300))]);  // never let a stuck image freeze the forecast
   if (token !== renderToken) return;
   shownSeed = seed; shownMode = mode; shownCount = count;
-  $('forecastTime').textContent = `${displayDate(seed)} · ${count} prints · ${modes[mode]}`;
-  $('forecastState').textContent = session ? 'Session' : $('live').checked ? 'Live' : 'Target';
+  const off = aim !== null && !session ? seed - aim : 0;
+  $('forecastTime').textContent = `${displayDate(seed)}${off ? ` (${off > 0 ? '+' : '−'}${Math.abs(off)} s from target)` : ''} · ${count} prints · ${modes[mode]}`;
+  $('forecastState').textContent = session ? 'Session' : target === null ? 'Live' : 'Target';
+  $('gotThis').textContent = off ? `I got this one · shift offset ${off > 0 ? '+' : '−'}${Math.abs(off)} s` : 'I got this one';
   $('rewards').replaceChildren(...rows);
   $('bonus').textContent = data.nextMode ? modes[data.nextMode] : 'None';
 }
 async function refresh() {
   if (!baseSeed || pending) return;
   let seed;
-  try { seed = session ? session.seed : $('live').checked ? tracked() : target; } catch(e) { error(e.message); return; }
+  try { seed = session ? session.seed : target ?? tracked(); } catch(e) { error(e.message); return; }
   if (seed === null) return;
   const mode = Number($('mode').value), count = Number($('count').value);
   const key = JSON.stringify([seed,mode,count,session?.chain]);
@@ -89,34 +119,44 @@ function tick() {
   if (!baseSeed) return;
   try {
     const now = current(), consoleNow = tracked();
-    $('clock').textContent = timeFor(now); $('date').textContent = displayDate(now).slice(0,10) + ' · Computer local time';
+    $('clock').textContent = timeFor(now); $('date').textContent = displayDate(now).slice(0,10);
     $('consoleClock').textContent = timeFor(consoleNow); $('seed').textContent = consoleNow;
-    if (target !== null) {
+    if (session) {
+      $('countdown').textContent = 'Printing session'; $('countdown').classList.remove('urgent');
+      $('targetHint').textContent = 'Stay in the printer. Back to live time ends the session.';
+    } else if (target !== null) {
       const diff = target - consoleNow;
       $('countdown').textContent = diff === 0 ? 'Target second — now' : `${diff < 0 ? '+' : '−'}${Math.abs(diff)} s`;
       $('countdown').classList.toggle('urgent', diff >= 0 && diff <= 10);
       $('targetHint').textContent = diff < 0 ? 'Target has passed. Choose another time or return to live.' : displayDate(target);
     }
     document.querySelectorAll('.wait').forEach(node => { node.textContent = `${waitText(node.dataset.seed - consoleNow)} · ${displayDate(node.dataset.seed).slice(0, 10)}`; });
-    if (performance.now() - lastSync > 15000) { $('connection').textContent = '● Reconnecting…'; sync(); }
+    if (performance.now() - lastSync > 15000) sync();
     refresh();
   } catch(e) { error(e.message); }
 }
 $('mode').onchange = () => { renderItems(); invalidate(); save('printerMode', $('mode').value); tick(); };
 $('count').onchange = () => { invalidate(); save('printerCount', $('count').value); tick(); };
 $('offset').oninput = () => { invalidate(); try { save('printerOffset',offset()); tick(); } catch(e) { error(e.message); } };
-$('preview').onclick = () => {
-  if (!$('target').value || !$('target').checkValidity()) return error('Choose a valid target date between 2000 and 2060.');
+$('target').onchange = () => {
+  if (!$('target').value) return;
+  if (!$('target').checkValidity()) return error('Choose a valid target date between 2000 and 2060.');
   setTarget(Math.floor(Date.parse($('target').value + 'Z') / 1000));
 };
-function goLive() { endSession(); target = null; $('live').checked = true; $('countdown').textContent = 'Choose a target'; $('targetHint').textContent = 'Preview a time or pick a search result.'; invalidate(); tick(); }
+function goLive() {
+  endSession(); target = null; aim = null; $('now').hidden = true;
+  $('countdown').textContent = 'Live time'; $('countdown').classList.remove('urgent');
+  $('targetHint').textContent = ''; invalidate(); tick();
+}
 $('now').onclick = goLive;
-$('live').onchange = () => { if ($('live').checked) goLive(); else if (shownSeed !== null) setTarget(shownSeed); };
-function endSession() { session = null; $('session').hidden = true; $('startSession').hidden = false; $('live').disabled = false; invalidate(); }
-$('startSession').onclick = () => {
-  if (shownSeed === null || pending || $('error').hidden === false) return error('Wait for a valid forecast before starting a session.');
-  session = {seed:shownSeed,chain:[]}; target = shownSeed; $('target').value = dateFor(target); $('live').checked = false; $('live').disabled = true;
-  $('session').hidden = false; $('startSession').hidden = true; $('sessionInfo').textContent = 'Session job 1 · starting from the displayed seed'; invalidate(); tick();
+function endSession() { session = null; $('session').hidden = true; $('hitBox').hidden = false; $('prevSecond').disabled = $('nextSecond').disabled = false; invalidate(); }
+$('gotThis').onclick = () => {
+  if (shownSeed === null || pending || $('error').hidden === false) return error('Wait for a valid forecast first.');
+  // Hit a different second than aimed for → the console is that much further ahead/behind than the offset says.
+  if (aim !== null && shownSeed !== aim) setOffset(offset() + shownSeed - aim);
+  aim = null; session = {seed:shownSeed,chain:[]}; target = shownSeed; $('now').hidden = false;
+  $('session').hidden = false; $('hitBox').hidden = true; $('prevSecond').disabled = $('nextSecond').disabled = true;
+  $('sessionInfo').textContent = 'Session job 1 · the rewards you got'; invalidate(); tick();
 };
 $('nextJob').onclick = () => {
   if (pending || !session || !lastRendered) return;
@@ -166,7 +206,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { in
 $('offset').value = read('printerOffset',0);
 $('mode').value = ['0','1','2'].includes(read('printerMode','0')) ? read('printerMode','0') : '0';
 $('count').value = ['1','5','10'].includes(read('printerCount','10')) ? read('printerCount','10') : '10';
-setupArtwork();
+setupArtwork(); setupTimezones();
 sync(true).then(tick); setInterval(tick,100);
 
 function itemImage(item, lazy = false) {
@@ -199,7 +239,6 @@ function renderLibrary(force = false) {
     button.onclick = () => openArtwork(item); return button;
   }));
   if (!selected.length) $('artGrid').textContent = 'No matching items.';
-  $('referenceCount').textContent = `(${artStatus?.references?.length ?? 0})`;
 }
 function openArtwork(item) {
   $('largeArt').src = 'art/items/' + item.id + '.png'; $('largeArt').alt = item.name;
@@ -216,14 +255,4 @@ function setupArtwork() {
   $('item').addEventListener('change', () => { updateSelectedItem(); invalidate(); tick(); });  // re-highlight the wanted item in the forecast
   $('artSearch').oninput = () => renderLibrary(); $('artFilter').onchange = () => renderLibrary();
   $('closeArt').onclick = () => $('artDialog').close();
-  document.querySelector('.reference-details').addEventListener('toggle', event => {
-    if (!event.target.open) return;
-    $('referenceGrid').replaceChildren(...(artStatus?.references || []).map(ref => {
-      const button = document.createElement('button'); button.className = 'art-tile';
-      const image = document.createElement('img'); image.src = ref.url; image.alt = ref.name; image.loading = 'lazy';
-      const label = document.createElement('span'); label.textContent = ref.name.split('/').pop(); button.append(image,label);
-      button.onclick = () => { $('largeArt').src = ref.url; $('largeArt').alt = ref.name; $('artName').textContent = label.textContent; $('artInfo').textContent = ref.name; $('artOriginal').href = ref.url; $('searchForArt').hidden = true; $('artDialog').showModal(); };
-      return button;
-    }));
-  });
 }
